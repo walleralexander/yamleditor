@@ -6,6 +6,7 @@ let editor = null;
 let currentFile = null;
 let isModified = false;
 let fileToDelete = null;
+let previewActive = false;
 
 // YAML Linter für CodeMirror registrieren
 CodeMirror.registerHelper('lint', 'yaml', function(text) {
@@ -58,6 +59,10 @@ function initEditor() {
         if (currentFile) {
             isModified = true;
             updateSaveButton();
+            // Markdown-Vorschau aktualisieren
+            if (previewActive) {
+                updatePreview();
+            }
         }
     });
 
@@ -134,10 +139,19 @@ async function openFile(filename) {
 
             // Editor-Modus setzen
             const mode = result.data.type === 'yaml' ? 'yaml' : 'markdown';
+            const isMarkdown = mode === 'markdown';
             editor.setOption('mode', mode);
 
             // Linting nur für YAML aktivieren
             editor.setOption('lint', mode === 'yaml' ? { getAnnotations: CodeMirror.lint.yaml } : false);
+
+            // Preview-Button nur für Markdown anzeigen
+            document.getElementById('btnPreview').style.display = isMarkdown ? 'inline-block' : 'none';
+
+            // Preview zurücksetzen wenn auf YAML gewechselt wird
+            if (!isMarkdown && previewActive) {
+                hidePreview();
+            }
 
             editor.setValue(result.data.content);
             editor.clearHistory();
@@ -157,6 +171,11 @@ async function openFile(filename) {
             // Editor refreshen nachdem er sichtbar ist
             editor.refresh();
             editor.focus();
+
+            // Vorschau aktualisieren wenn aktiv
+            if (previewActive && isMarkdown) {
+                updatePreview();
+            }
         } else {
             showToast(result.error || 'Fehler beim Öffnen der Datei', 'error');
         }
@@ -377,6 +396,46 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Markdown Preview Funktionen
+function togglePreview() {
+    if (previewActive) {
+        hidePreview();
+    } else {
+        showPreview();
+    }
+}
+
+function showPreview() {
+    previewActive = true;
+    document.getElementById('previewPane').classList.add('active');
+    document.getElementById('btnPreview').classList.add('active');
+    updatePreview();
+    editor.refresh();
+}
+
+function hidePreview() {
+    previewActive = false;
+    document.getElementById('previewPane').classList.remove('active');
+    document.getElementById('btnPreview').classList.remove('active');
+    editor.refresh();
+}
+
+function updatePreview() {
+    const content = editor.getValue();
+    const previewPane = document.getElementById('previewPane');
+
+    if (typeof marked !== 'undefined') {
+        // Marked.js Optionen
+        marked.setOptions({
+            breaks: true,
+            gfm: true
+        });
+        previewPane.innerHTML = marked.parse(content);
+    } else {
+        previewPane.innerHTML = '<p style="color: #e74c3c;">Markdown-Parser nicht geladen</p>';
+    }
 }
 
 // Enter-Taste im Modal

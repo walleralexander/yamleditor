@@ -248,11 +248,141 @@ $user = $auth->getCurrentUser();
         .editor-container {
             flex: 1;
             overflow: hidden;
+            display: flex;
+        }
+
+        .editor-wrapper {
+            flex: 1;
+            overflow: hidden;
+            min-width: 0;
         }
 
         .CodeMirror {
             height: 100%;
             font-size: 14px;
+        }
+
+        /* Markdown Preview */
+        .preview-pane {
+            flex: 1;
+            overflow: auto;
+            padding: 1rem;
+            background: #1e1f29;
+            border-left: 1px solid #44475a;
+            display: none;
+            min-width: 0;
+        }
+
+        .preview-pane.active {
+            display: block;
+        }
+
+        .preview-pane h1, .preview-pane h2, .preview-pane h3,
+        .preview-pane h4, .preview-pane h5, .preview-pane h6 {
+            color: #f8f8f2;
+            margin: 1rem 0 0.5rem 0;
+        }
+
+        .preview-pane h1 { font-size: 2rem; border-bottom: 1px solid #44475a; padding-bottom: 0.3rem; }
+        .preview-pane h2 { font-size: 1.5rem; border-bottom: 1px solid #44475a; padding-bottom: 0.3rem; }
+        .preview-pane h3 { font-size: 1.25rem; }
+
+        .preview-pane p {
+            color: #ccc;
+            line-height: 1.6;
+            margin: 0.5rem 0;
+        }
+
+        .preview-pane a {
+            color: #8be9fd;
+        }
+
+        .preview-pane code {
+            background: #282a36;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: monospace;
+            color: #50fa7b;
+        }
+
+        .preview-pane pre {
+            background: #282a36;
+            padding: 1rem;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .preview-pane pre code {
+            padding: 0;
+            background: transparent;
+        }
+
+        .preview-pane ul, .preview-pane ol {
+            color: #ccc;
+            margin: 0.5rem 0;
+            padding-left: 2rem;
+        }
+
+        .preview-pane li {
+            margin: 0.25rem 0;
+        }
+
+        .preview-pane blockquote {
+            border-left: 4px solid #6272a4;
+            margin: 1rem 0;
+            padding-left: 1rem;
+            color: #999;
+        }
+
+        .preview-pane table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1rem 0;
+        }
+
+        .preview-pane th, .preview-pane td {
+            border: 1px solid #44475a;
+            padding: 0.5rem;
+            text-align: left;
+        }
+
+        .preview-pane th {
+            background: #282a36;
+            color: #f8f8f2;
+        }
+
+        .preview-pane td {
+            color: #ccc;
+        }
+
+        .preview-pane hr {
+            border: none;
+            border-top: 1px solid #44475a;
+            margin: 1.5rem 0;
+        }
+
+        .preview-pane img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .btn-preview {
+            padding: 0.5rem 1rem;
+            background: #6272a4;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .btn-preview:hover {
+            background: #7283b5;
+        }
+
+        .btn-preview.active {
+            background: #bd93f9;
         }
 
         .no-file-selected {
@@ -408,6 +538,7 @@ $user = $auth->getCurrentUser();
             <div class="editor-header">
                 <span class="editor-title" id="editorTitle">Keine Datei ausgewählt</span>
                 <div class="editor-actions">
+                    <button class="btn-preview" id="btnPreview" style="display: none;" onclick="togglePreview()">Vorschau</button>
                     <button class="btn-save" id="btnSave" disabled onclick="saveFile()">Speichern</button>
                 </div>
             </div>
@@ -415,7 +546,10 @@ $user = $auth->getCurrentUser();
                 <div class="no-file-selected" id="noFileMessage">
                     Wählen Sie eine Datei aus oder erstellen Sie eine neue
                 </div>
-                <textarea id="editor"></textarea>
+                <div class="editor-wrapper">
+                    <textarea id="editor"></textarea>
+                </div>
+                <div class="preview-pane" id="previewPane"></div>
             </div>
         </main>
     </div>
@@ -466,6 +600,7 @@ $user = $auth->getCurrentUser();
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/lint/lint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
