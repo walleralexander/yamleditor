@@ -134,9 +134,41 @@ async function openFile(filename) {
     }
 }
 
+// YAML validieren
+function validateYaml(content) {
+    try {
+        jsyaml.load(content);
+        return { valid: true };
+    } catch (e) {
+        return {
+            valid: false,
+            message: e.message,
+            line: e.mark ? e.mark.line + 1 : null
+        };
+    }
+}
+
 // Datei speichern
 async function saveFile() {
     if (!currentFile || !isModified) return;
+
+    // YAML-Dateien vor dem Speichern validieren
+    const isYaml = currentFile.toLowerCase().endsWith('.yaml') || currentFile.toLowerCase().endsWith('.yml');
+    if (isYaml) {
+        const validation = validateYaml(editor.getValue());
+        if (!validation.valid) {
+            let errorMsg = 'YAML-Syntaxfehler';
+            if (validation.line) {
+                errorMsg += ` in Zeile ${validation.line}`;
+                // Zur fehlerhaften Zeile springen
+                editor.setCursor(validation.line - 1, 0);
+                editor.focus();
+            }
+            errorMsg += `: ${validation.message}`;
+            showToast(errorMsg, 'error');
+            return;
+        }
+    }
 
     try {
         const response = await fetch('api/files.php', {
