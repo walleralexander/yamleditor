@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  yamleditor:
+    build: .
+    container_name: yamleditor
+    ports:
+      - "8080:80"
+    volumes:
+      # Persistente Daten für Dateien und Datenbank
+      - ./data/files:/var/www/data/files
+      - ./database:/var/www/database
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Berlin

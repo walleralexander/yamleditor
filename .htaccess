@@ -1,0 +1,9 @@
+RewriteEngine On
+
+# Zugriff auf sensible Verzeichnisse verhindern
+RewriteRule ^(config|src|database)/ - [F,L]
+
+# Alle Anfragen an index.php weiterleiten (außer existierende Dateien)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [L]
