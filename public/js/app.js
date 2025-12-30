@@ -136,6 +136,12 @@ async function openFile(filename) {
 
 // YAML validieren
 function validateYaml(content) {
+    // Prüfen ob js-yaml Bibliothek geladen ist
+    if (typeof jsyaml === 'undefined') {
+        console.error('js-yaml library not loaded');
+        return { valid: true }; // Fallback: keine Validierung
+    }
+
     try {
         jsyaml.load(content);
         return { valid: true };
@@ -318,9 +324,11 @@ function showToast(message, type = 'success') {
     toast.textContent = message;
     container.appendChild(toast);
 
+    // Fehler-Toasts länger anzeigen
+    const duration = type === 'error' ? 6000 : 3000;
     setTimeout(() => {
         toast.remove();
-    }, 3000);
+    }, duration);
 }
 
 // Fehler-Modal für wichtige Fehlermeldungen

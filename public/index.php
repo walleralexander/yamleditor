@@ -356,6 +356,9 @@ $user = $auth->getCurrentUser();
 
         .toast.error {
             background: #e74c3c;
+            font-weight: bold;
+            max-width: 400px;
+            word-wrap: break-word;
         }
 
         @keyframes slideIn {
