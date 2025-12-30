@@ -51,3 +51,6 @@ define('PASSWORD_MIN_LENGTH', (int)(getenv('PASSWORD_MIN_LENGTH') ?: 8));
 // Admin-Einstellungen
 define('ADMIN_USERNAME', getenv('ADMIN_USERNAME') ?: 'admin');
 define('ADMIN_PASSWORD', getenv('ADMIN_PASSWORD') ?: 'admin123');
+
+// Backup-Einstellungen
+define('MAX_BACKUPS', (int)(getenv('MAX_BACKUPS') ?: 15));

@@ -8,13 +8,14 @@ class FileManager
     private string $basePath;
     private string $backupPath;
     private array $allowedExtensions;
-    private int $maxBackups = 15;
+    private int $maxBackups;
 
     public function __construct()
     {
         $this->basePath = realpath(FILES_DIR) ?: FILES_DIR;
         $this->backupPath = $this->basePath . DIRECTORY_SEPARATOR . '.backups';
         $this->allowedExtensions = ALLOWED_EXTENSIONS;
+        $this->maxBackups = defined('MAX_BACKUPS') ? MAX_BACKUPS : 15;
 
         if (!is_dir($this->basePath)) {
             mkdir($this->basePath, 0755, true);

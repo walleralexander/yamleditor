@@ -62,6 +62,7 @@ Copy `.env.example` to `.env` and adjust the settings:
 | `DB_PATH` | SQLite database path | `database/users.db` |
 | `SESSION_LIFETIME` | Session timeout in seconds | `3600` |
 | `PASSWORD_MIN_LENGTH` | Minimum password length | `8` |
+| `MAX_BACKUPS` | Number of backups to keep per file | `15` |
 
 ## Docker Configuration
 
