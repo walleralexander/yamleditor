@@ -61,11 +61,15 @@ function initEditor() {
         }
     });
 
-    // Tastenkombination Ctrl+S zum Speichern
+    // Tastenkombinationen
     editor.setOption('extraKeys', {
         'Ctrl-S': (cm) => {
             saveFile();
             return false;
+        },
+        'Tab': (cm) => {
+            // Tab mit Leerzeichen ersetzen
+            cm.replaceSelection('  ', 'end');
         }
     });
 }
