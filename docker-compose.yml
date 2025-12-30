@@ -2,8 +2,8 @@ services:
   yamleditor:
     build: .
     container_name: yamleditor
-    ports:
-      - "8080:80"
+    #ports:
+    #  - "8080:80"
     volumes:
       # Persistente Daten für Dateien
       - ${FILES_HOST_DIR:-./data/files}:/var/www/data/files
@@ -16,6 +16,11 @@ services:
       - TZ=Europe/Vienna
       - APACHE_RUN_USER=#${PUID:-33}
       - APACHE_RUN_GROUP=#${PGID:-33}
+    networks:
+      - dockernet
+networks:
+  dockernet:
+    external: true
 
 volumes:
   yamleditor_db:
