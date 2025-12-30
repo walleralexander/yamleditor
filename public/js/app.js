@@ -7,6 +7,27 @@ let currentFile = null;
 let isModified = false;
 let fileToDelete = null;
 
+// YAML Linter für CodeMirror registrieren
+CodeMirror.registerHelper('lint', 'yaml', function(text) {
+    const errors = [];
+    if (typeof jsyaml === 'undefined') {
+        return errors;
+    }
+    try {
+        jsyaml.load(text);
+    } catch (e) {
+        const line = e.mark ? e.mark.line : 0;
+        const col = e.mark ? e.mark.column : 0;
+        errors.push({
+            from: CodeMirror.Pos(line, col),
+            to: CodeMirror.Pos(line, col + 1),
+            message: e.reason || e.message,
+            severity: 'error'
+        });
+    }
+    return errors;
+});
+
 // Editor initialisieren
 document.addEventListener('DOMContentLoaded', () => {
     initEditor();
@@ -24,7 +45,9 @@ function initEditor() {
         indentUnit: 2,
         tabSize: 2,
         indentWithTabs: false,
-        autofocus: false
+        autofocus: false,
+        gutters: ['CodeMirror-lint-markers'],
+        lint: false  // Wird beim Öffnen einer Datei aktiviert
     });
 
     editor.setSize('100%', '100%');
@@ -108,6 +131,10 @@ async function openFile(filename) {
             // Editor-Modus setzen
             const mode = result.data.type === 'yaml' ? 'yaml' : 'markdown';
             editor.setOption('mode', mode);
+
+            // Linting nur für YAML aktivieren
+            editor.setOption('lint', mode === 'yaml' ? { getAnnotations: CodeMirror.lint.yaml } : false);
+
             editor.setValue(result.data.content);
             editor.clearHistory();
 
