@@ -6,15 +6,22 @@
 class FileManager
 {
     private string $basePath;
+    private string $backupPath;
     private array $allowedExtensions;
+    private int $maxBackups = 15;
 
     public function __construct()
     {
         $this->basePath = realpath(FILES_DIR) ?: FILES_DIR;
+        $this->backupPath = $this->basePath . DIRECTORY_SEPARATOR . '.backups';
         $this->allowedExtensions = ALLOWED_EXTENSIONS;
 
         if (!is_dir($this->basePath)) {
             mkdir($this->basePath, 0755, true);
+        }
+
+        if (!is_dir($this->backupPath)) {
+            mkdir($this->backupPath, 0755, true);
         }
     }
 
@@ -109,6 +116,51 @@ class FileManager
     }
 
     /**
+     * Backup einer Datei erstellen
+     */
+    private function createBackup(string $path, string $filename): void
+    {
+        if (!file_exists($path)) {
+            return;
+        }
+
+        // Backup-Dateiname mit Datum und Uhrzeit
+        $timestamp = date('Y-m-d_H-i-s');
+        $backupName = pathinfo($filename, PATHINFO_FILENAME) . '_' . $timestamp . '.' . pathinfo($filename, PATHINFO_EXTENSION);
+        $backupFile = $this->backupPath . DIRECTORY_SEPARATOR . $backupName;
+
+        // Backup erstellen
+        copy($path, $backupFile);
+
+        // Alte Backups aufräumen
+        $this->cleanupBackups($filename);
+    }
+
+    /**
+     * Alte Backups löschen, nur die neuesten behalten
+     */
+    private function cleanupBackups(string $filename): void
+    {
+        $baseName = pathinfo($filename, PATHINFO_FILENAME);
+        $ext = pathinfo($filename, PATHINFO_EXTENSION);
+        $pattern = $this->backupPath . DIRECTORY_SEPARATOR . $baseName . '_*.' . $ext;
+
+        $backups = glob($pattern);
+        if ($backups === false || count($backups) <= $this->maxBackups) {
+            return;
+        }
+
+        // Nach Änderungsdatum sortieren (neueste zuerst)
+        usort($backups, fn($a, $b) => filemtime($b) - filemtime($a));
+
+        // Ältere Backups löschen
+        $toDelete = array_slice($backups, $this->maxBackups);
+        foreach ($toDelete as $file) {
+            unlink($file);
+        }
+    }
+
+    /**
      * Datei lesen
      */
     public function read(string $filename): ?array
@@ -169,6 +221,9 @@ class FileManager
         if (!is_writable($path)) {
             throw new Exception("Keine Schreibrechte für diese Datei. Bitte auf dem Host ausführen: chmod 666 " . basename($path));
         }
+
+        // Backup vor dem Speichern erstellen
+        $this->createBackup($path, $filename);
 
         // Konvertiere zu ASCII
         $content = $this->toAscii($content);
