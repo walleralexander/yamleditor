@@ -89,28 +89,21 @@ class FileManager
      */
     private function toAscii(string $content): string
     {
-        // Häufige Unicode-Zeichen durch ASCII-Äquivalente ersetzen
+        // Fancy quotes und andere Unicode-Zeichen durch ASCII ersetzen
         $replacements = [
-            // Anführungszeichen
-            '"' => '"', '"' => '"', '„' => '"',
-            ''' => "'", ''' => "'", '‚' => "'",
-            // Gedankenstriche
-            '–' => '-', '—' => '-',
-            // Auslassungspunkte
-            '…' => '...',
-            // Leerzeichen
-            ' ' => ' ', // Non-breaking space
-            // Deutsche Umlaute (optional beibehalten oder ersetzen)
-            // 'ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue',
-            // 'Ä' => 'Ae', 'Ö' => 'Oe', 'Ü' => 'Ue',
-            // 'ß' => 'ss',
+            "\xE2\x80\x9C" => '"',  // "
+            "\xE2\x80\x9D" => '"',  // "
+            "\xE2\x80\x9E" => '"',  // „
+            "\xE2\x80\x98" => "'",  // '
+            "\xE2\x80\x99" => "'",  // '
+            "\xE2\x80\x9A" => "'",  // ‚
+            "\xE2\x80\x93" => '-',  // –
+            "\xE2\x80\x94" => '-',  // —
+            "\xE2\x80\xA6" => '...', // …
+            "\xC2\xA0" => ' ',      // non-breaking space
         ];
 
         $content = str_replace(array_keys($replacements), array_values($replacements), $content);
-
-        // Restliche nicht-ASCII Zeichen entfernen (Zeichen > 127)
-        // Behalte nur druckbare ASCII-Zeichen und Whitespace
-        $content = preg_replace('/[^\x00-\x7F]/u', '', $content);
 
         return $content;
     }
