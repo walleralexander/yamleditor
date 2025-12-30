@@ -98,6 +98,25 @@ $user = $auth->getCurrentUser();
             background: #219a52;
         }
 
+        .btn-secondary {
+            padding: 0.5rem 1rem;
+            background: #4a90d9;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .btn-secondary:hover {
+            background: #357abd;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
         .users-table {
             width: 100%;
             background: #16213e;
@@ -322,7 +341,12 @@ $user = $auth->getCurrentUser();
     <div class="container">
         <div class="section-header">
             <h2>Benutzer</h2>
-            <button class="btn-add" onclick="showAddModal()">+ Neuer Benutzer</button>
+            <div class="header-actions">
+                <button class="btn-secondary" onclick="exportUsers()">Export</button>
+                <button class="btn-secondary" onclick="document.getElementById('importFile').click()">Import</button>
+                <input type="file" id="importFile" accept=".json" style="display: none" onchange="importUsers(this.files[0])">
+                <button class="btn-add" onclick="showAddModal()">+ Neuer Benutzer</button>
+            </div>
         </div>
 
         <div class="users-table">
@@ -386,6 +410,25 @@ $user = $auth->getCurrentUser();
             <div class="modal-buttons">
                 <button class="modal-btn cancel" onclick="hideDeleteModal()">Abbrechen</button>
                 <button class="modal-btn danger" onclick="confirmDeleteUser()">Löschen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal für Import-Optionen -->
+    <div class="modal-overlay" id="importModal">
+        <div class="modal">
+            <h3>Benutzer importieren</h3>
+            <p style="margin-bottom: 1rem; color: #ccc;">
+                <span id="importInfo"></span>
+            </p>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="importOverwrite"> Bestehende Benutzer überschreiben
+                </label>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="hideImportModal()">Abbrechen</button>
+                <button class="modal-btn primary" onclick="confirmImport()">Importieren</button>
             </div>
         </div>
     </div>
@@ -560,6 +603,74 @@ $user = $auth->getCurrentUser();
                 month: '2-digit',
                 year: 'numeric'
             });
+        }
+
+        // Export-Funktion
+        function exportUsers() {
+            window.location.href = 'api/users.php?export=1';
+        }
+
+        // Import-Funktion
+        let importData = null;
+
+        function importUsers(file) {
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    importData = JSON.parse(e.target.result);
+
+                    if (!importData.users || !Array.isArray(importData.users)) {
+                        showToast('Ungültiges Dateiformat', 'error');
+                        return;
+                    }
+
+                    document.getElementById('importInfo').textContent =
+                        `${importData.users.length} Benutzer gefunden (exportiert am ${importData.exported_at || 'unbekannt'})`;
+                    document.getElementById('importOverwrite').checked = false;
+                    document.getElementById('importModal').classList.add('active');
+                } catch (err) {
+                    showToast('Fehler beim Lesen der Datei: ' + err.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+
+            // Reset file input
+            document.getElementById('importFile').value = '';
+        }
+
+        function hideImportModal() {
+            document.getElementById('importModal').classList.remove('active');
+            importData = null;
+        }
+
+        async function confirmImport() {
+            if (!importData || !importData.users) return;
+
+            try {
+                const response = await fetch('api/users.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        import: true,
+                        users: importData.users,
+                        overwrite: document.getElementById('importOverwrite').checked
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    hideImportModal();
+                    showToast(result.message, 'success');
+                    loadUsers();
+                } else {
+                    showToast(result.error || 'Fehler beim Import', 'error');
+                }
+            } catch (error) {
+                showToast('Netzwerkfehler', 'error');
+            }
         }
 
         // Modal schließen bei Klick außerhalb

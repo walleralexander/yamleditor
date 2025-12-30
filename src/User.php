@@ -24,6 +24,15 @@ class User
     }
 
     /**
+     * Alle Benutzer mit Passwort-Hash abrufen (für Export)
+     */
+    public function getAllWithPasswords(): array
+    {
+        $stmt = $this->db->query("SELECT id, username, password, email, role, created_at, updated_at FROM users ORDER BY username");
+        return $stmt->fetchAll();
+    }
+
+    /**
      * Benutzer nach ID abrufen
      */
     public function getById(int $id): ?array
@@ -61,6 +70,15 @@ class User
     }
 
     /**
+     * Benutzer mit bereits gehashtem Passwort erstellen (für Import)
+     */
+    public function createWithHashedPassword(string $username, string $hashedPassword, string $email = '', string $role = 'user'): bool
+    {
+        $stmt = $this->db->prepare("INSERT INTO users (username, password, email, role) VALUES (?, ?, ?, ?)");
+        return $stmt->execute([$username, $hashedPassword, $email, $role]);
+    }
+
+    /**
      * Benutzer aktualisieren
      */
     public function update(int $id, array $data): bool
@@ -89,6 +107,46 @@ class User
             }
             $fields[] = 'password = ?';
             $values[] = password_hash($data['password'], PASSWORD_DEFAULT);
+        }
+
+        if (empty($fields)) {
+            return false;
+        }
+
+        $fields[] = 'updated_at = CURRENT_TIMESTAMP';
+        $values[] = $id;
+
+        $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute($values);
+    }
+
+    /**
+     * Benutzer mit bereits gehashtem Passwort aktualisieren (für Import)
+     */
+    public function updateWithHashedPassword(int $id, array $data): bool
+    {
+        $fields = [];
+        $values = [];
+
+        if (isset($data['username'])) {
+            $fields[] = 'username = ?';
+            $values[] = $data['username'];
+        }
+
+        if (isset($data['email'])) {
+            $fields[] = 'email = ?';
+            $values[] = $data['email'];
+        }
+
+        if (isset($data['role'])) {
+            $fields[] = 'role = ?';
+            $values[] = $data['role'];
+        }
+
+        if (isset($data['password']) && !empty($data['password'])) {
+            $fields[] = 'password = ?';
+            $values[] = $data['password']; // Bereits gehasht
         }
 
         if (empty($fields)) {

@@ -440,6 +440,20 @@ $user = $auth->getCurrentUser();
         </div>
     </div>
 
+    <!-- Fehler Modal -->
+    <div class="modal-overlay" id="errorModal">
+        <div class="modal" style="border-left: 4px solid #e74c3c;">
+            <h3 style="color: #e74c3c;">⚠️ Berechtigungsfehler</h3>
+            <p id="errorMessage" style="margin: 1rem 0; color: #ccc; line-height: 1.6;"></p>
+            <p style="margin-bottom: 1rem; color: #888; font-size: 0.9rem;">
+                Führen Sie den angegebenen Befehl auf dem Host-System aus und versuchen Sie es erneut.
+            </p>
+            <div class="modal-buttons">
+                <button class="modal-btn primary" onclick="hideErrorModal()">Verstanden</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 

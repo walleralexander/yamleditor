@@ -104,13 +104,15 @@ async function openFile(filename) {
 
         if (result.success) {
             currentFile = filename;
-            isModified = false;
 
             // Editor-Modus setzen
             const mode = result.data.type === 'yaml' ? 'yaml' : 'markdown';
             editor.setOption('mode', mode);
             editor.setValue(result.data.content);
             editor.clearHistory();
+
+            // isModified NACH setValue zurücksetzen, da setValue das change-Event auslöst
+            isModified = false;
 
             // UI aktualisieren
             document.getElementById('noFileMessage').style.display = 'none';
@@ -121,6 +123,8 @@ async function openFile(filename) {
             // Dateiliste aktualisieren (aktive Markierung)
             loadFiles();
 
+            // Editor refreshen nachdem er sichtbar ist
+            editor.refresh();
             editor.focus();
         } else {
             showToast(result.error || 'Fehler beim Öffnen der Datei', 'error');
@@ -146,6 +150,12 @@ async function saveFile() {
             })
         });
 
+        if (!response.ok) {
+            const result = await response.json().catch(() => ({}));
+            showToast(result.error || `Fehler: ${response.status}`, 'error');
+            return;
+        }
+
         const result = await response.json();
 
         if (result.success) {
@@ -156,7 +166,8 @@ async function saveFile() {
             showToast(result.error || 'Fehler beim Speichern', 'error');
         }
     } catch (error) {
-        showToast('Netzwerkfehler', 'error');
+        console.error('Save error:', error);
+        showToast('Netzwerkfehler: ' + error.message, 'error');
     }
 }
 
@@ -263,6 +274,12 @@ async function confirmDelete() {
 
 // Toast-Benachrichtigungen
 function showToast(message, type = 'success') {
+    // Bei Berechtigungsfehlern Modal anzeigen statt Toast
+    if (type === 'error' && (message.includes('chmod') || message.includes('Schreibrechte') || message.includes('Permission'))) {
+        showErrorModal(message);
+        return;
+    }
+
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
@@ -272,6 +289,16 @@ function showToast(message, type = 'success') {
     setTimeout(() => {
         toast.remove();
     }, 3000);
+}
+
+// Fehler-Modal für wichtige Fehlermeldungen
+function showErrorModal(message) {
+    document.getElementById('errorMessage').textContent = message;
+    document.getElementById('errorModal').classList.add('active');
+}
+
+function hideErrorModal() {
+    document.getElementById('errorModal').classList.remove('active');
 }
 
 // Hilfsfunktion für HTML-Escaping

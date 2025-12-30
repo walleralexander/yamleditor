@@ -30,9 +30,9 @@ RUN chown -R www-data:www-data /var/www \
     && chmod -R 755 /var/www \
     && chmod -R 777 /var/www/data /var/www/database
 
-# Config-Pfade für Container anpassen
-RUN sed -i "s|__DIR__ . '/../data/files'|'/var/www/data/files'|g" /var/www/config/config.php \
-    && sed -i "s|__DIR__ . '/../database/users.db'|'/var/www/database/users.db'|g" /var/www/config/config.php
+# Umgebungsvariablen für Container-Pfade
+ENV FILES_DIR=/var/www/data/files
+ENV DB_PATH=/var/www/database/users.db
 
 # Port freigeben
 EXPOSE 80

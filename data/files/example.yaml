@@ -20,5 +20,5 @@ features:
     enabled: true
   - name: "Dashboard"
     enabled: true
-  - name: "Reports"
+  - name: "Repo"
     enabled: false

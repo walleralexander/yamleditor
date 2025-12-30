@@ -3,11 +3,26 @@
  * API-Endpunkt für Datei-Operationen (CRUD)
  */
 
+// Fehlerausgabe als JSON statt HTML
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+
+// Custom error handler für JSON-Ausgabe
+set_error_handler(function($severity, $message, $file, $line) {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
 header('Content-Type: application/json');
 
-require_once __DIR__ . '/../../config/config.php';
-require_once __DIR__ . '/../../src/Auth.php';
-require_once __DIR__ . '/../../src/FileManager.php';
+try {
+    require_once __DIR__ . '/../../config/config.php';
+    require_once __DIR__ . '/../../src/Auth.php';
+    require_once __DIR__ . '/../../src/FileManager.php';
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Konfigurationsfehler: ' . $e->getMessage()]);
+    exit;
+}
 
 $auth = new Auth();
 
@@ -89,7 +104,7 @@ try {
             http_response_code(405);
             echo json_encode(['error' => 'Methode nicht erlaubt']);
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     http_response_code(400);
     echo json_encode(['error' => $e->getMessage()]);
 }

@@ -41,13 +41,17 @@ class Database
         self::$instance->exec($sql);
 
         // Prüfen ob Admin-User existiert, sonst erstellen
-        $stmt = self::$instance->query("SELECT COUNT(*) as count FROM users WHERE username = 'admin'");
+        $adminUsername = defined('ADMIN_USERNAME') ? ADMIN_USERNAME : 'admin';
+        $adminPassword = defined('ADMIN_PASSWORD') ? ADMIN_PASSWORD : 'admin123';
+
+        $stmt = self::$instance->prepare("SELECT COUNT(*) as count FROM users WHERE username = ?");
+        $stmt->execute([$adminUsername]);
         $result = $stmt->fetch();
 
         if ($result['count'] == 0) {
-            $defaultPassword = password_hash('admin123', PASSWORD_DEFAULT);
+            $hashedPassword = password_hash($adminPassword, PASSWORD_DEFAULT);
             $stmt = self::$instance->prepare("INSERT INTO users (username, password, role) VALUES (?, ?, ?)");
-            $stmt->execute(['admin', $defaultPassword, 'admin']);
+            $stmt->execute([$adminUsername, $hashedPassword, 'admin']);
         }
     }
 }

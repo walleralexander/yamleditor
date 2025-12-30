@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   yamleditor:
     build: .
@@ -7,9 +5,17 @@ services:
     ports:
       - "8080:80"
     volumes:
-      # Persistente Daten für Dateien und Datenbank
-      - ./data/files:/var/www/data/files
-      - ./database:/var/www/database
+      # Persistente Daten für Dateien
+      - ${FILES_HOST_DIR:-./data/files}:/var/www/data/files
+      # Datenbank als Docker Volume
+      - yamleditor_db:/var/www/database
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      - TZ=Europe/Berlin
+      - TZ=Europe/Vienna
+      - APACHE_RUN_USER=#${PUID:-33}
+      - APACHE_RUN_GROUP=#${PGID:-33}
+
+volumes:
+  yamleditor_db:

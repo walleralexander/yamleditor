@@ -85,6 +85,37 @@ class FileManager
     }
 
     /**
+     * Konvertiert UTF-8 Text zu ASCII (entfernt/ersetzt nicht-ASCII Zeichen)
+     */
+    private function toAscii(string $content): string
+    {
+        // Häufige Unicode-Zeichen durch ASCII-Äquivalente ersetzen
+        $replacements = [
+            // Anführungszeichen
+            '"' => '"', '"' => '"', '„' => '"',
+            ''' => "'", ''' => "'", '‚' => "'",
+            // Gedankenstriche
+            '–' => '-', '—' => '-',
+            // Auslassungspunkte
+            '…' => '...',
+            // Leerzeichen
+            ' ' => ' ', // Non-breaking space
+            // Deutsche Umlaute (optional beibehalten oder ersetzen)
+            // 'ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue',
+            // 'Ä' => 'Ae', 'Ö' => 'Oe', 'Ü' => 'Ue',
+            // 'ß' => 'ss',
+        ];
+
+        $content = str_replace(array_keys($replacements), array_values($replacements), $content);
+
+        // Restliche nicht-ASCII Zeichen entfernen (Zeichen > 127)
+        // Behalte nur druckbare ASCII-Zeichen und Whitespace
+        $content = preg_replace('/[^\x00-\x7F]/u', '', $content);
+
+        return $content;
+    }
+
+    /**
      * Datei lesen
      */
     public function read(string $filename): ?array
@@ -117,7 +148,18 @@ class FileManager
             throw new Exception("Datei existiert bereits");
         }
 
-        return file_put_contents($path, $content) !== false;
+        if (!is_writable($this->basePath)) {
+            throw new Exception("Keine Schreibrechte. Bitte auf dem Host ausführen: chmod 777 " . $this->basePath);
+        }
+
+        // Konvertiere zu ASCII
+        $content = $this->toAscii($content);
+
+        $result = file_put_contents($path, $content);
+        if ($result === false) {
+            throw new Exception("Datei konnte nicht erstellt werden. Schreibrechte prüfen.");
+        }
+        return true;
     }
 
     /**
@@ -131,7 +173,18 @@ class FileManager
             throw new Exception("Datei nicht gefunden");
         }
 
-        return file_put_contents($path, $content) !== false;
+        if (!is_writable($path)) {
+            throw new Exception("Keine Schreibrechte für diese Datei. Bitte auf dem Host ausführen: chmod 666 " . basename($path));
+        }
+
+        // Konvertiere zu ASCII
+        $content = $this->toAscii($content);
+
+        $result = file_put_contents($path, $content);
+        if ($result === false) {
+            throw new Exception("Datei konnte nicht gespeichert werden. Schreibrechte prüfen.");
+        }
+        return true;
     }
 
     /**
