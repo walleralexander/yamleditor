@@ -72,6 +72,14 @@ function initEditor() {
             saveFile();
             return false;
         },
+        'Ctrl-B': (cm) => {
+            insertFormat('bold');
+            return false;
+        },
+        'Ctrl-I': (cm) => {
+            insertFormat('italic');
+            return false;
+        },
         'Tab': (cm) => {
             // Tab mit Leerzeichen ersetzen
             cm.replaceSelection('  ', 'end');
@@ -145,8 +153,9 @@ async function openFile(filename) {
             // Linting nur für YAML aktivieren
             editor.setOption('lint', mode === 'yaml' ? { getAnnotations: CodeMirror.lint.yaml } : false);
 
-            // Preview-Button nur für Markdown anzeigen
+            // Preview-Button und Toolbar nur für Markdown anzeigen
             document.getElementById('btnPreview').style.display = isMarkdown ? 'inline-block' : 'none';
+            document.getElementById('editorToolbar').classList.toggle('active', isMarkdown);
 
             // Preview zurücksetzen wenn auf YAML gewechselt wird
             if (!isMarkdown && previewActive) {
@@ -435,6 +444,86 @@ function updatePreview() {
         previewPane.innerHTML = marked.parse(content);
     } else {
         previewPane.innerHTML = '<p style="color: #e74c3c;">Markdown-Parser nicht geladen</p>';
+    }
+}
+
+// Markdown Formatierung einfügen
+function insertFormat(type) {
+    const selection = editor.getSelection();
+    const cursor = editor.getCursor();
+    let replacement = '';
+    let cursorOffset = 0;
+
+    switch (type) {
+        case 'bold':
+            replacement = selection ? `**${selection}**` : '**text**';
+            cursorOffset = selection ? 0 : -2;
+            break;
+        case 'italic':
+            replacement = selection ? `*${selection}*` : '*text*';
+            cursorOffset = selection ? 0 : -1;
+            break;
+        case 'strikethrough':
+            replacement = selection ? `~~${selection}~~` : '~~text~~';
+            cursorOffset = selection ? 0 : -2;
+            break;
+        case 'h1':
+            replacement = `# ${selection || 'Überschrift'}`;
+            break;
+        case 'h2':
+            replacement = `## ${selection || 'Überschrift'}`;
+            break;
+        case 'h3':
+            replacement = `### ${selection || 'Überschrift'}`;
+            break;
+        case 'ul':
+            replacement = selection
+                ? selection.split('\n').map(line => `- ${line}`).join('\n')
+                : '- Listenpunkt';
+            break;
+        case 'ol':
+            replacement = selection
+                ? selection.split('\n').map((line, i) => `${i + 1}. ${line}`).join('\n')
+                : '1. Listenpunkt';
+            break;
+        case 'checklist':
+            replacement = selection
+                ? selection.split('\n').map(line => `- [ ] ${line}`).join('\n')
+                : '- [ ] Aufgabe';
+            break;
+        case 'link':
+            replacement = selection ? `[${selection}](url)` : '[Linktext](url)';
+            break;
+        case 'image':
+            replacement = selection ? `![${selection}](url)` : '![Beschreibung](url)';
+            break;
+        case 'code':
+            replacement = selection ? `\`${selection}\`` : '`code`';
+            cursorOffset = selection ? 0 : -1;
+            break;
+        case 'codeblock':
+            replacement = selection ? `\`\`\`\n${selection}\n\`\`\`` : '```\ncode\n```';
+            break;
+        case 'quote':
+            replacement = selection
+                ? selection.split('\n').map(line => `> ${line}`).join('\n')
+                : '> Zitat';
+            break;
+        case 'hr':
+            replacement = '\n---\n';
+            break;
+        case 'table':
+            replacement = '| Spalte 1 | Spalte 2 | Spalte 3 |\n|----------|----------|----------|\n| Zelle 1  | Zelle 2  | Zelle 3  |';
+            break;
+    }
+
+    editor.replaceSelection(replacement);
+    editor.focus();
+
+    // Cursor positionieren wenn nötig
+    if (cursorOffset !== 0 && !selection) {
+        const newCursor = editor.getCursor();
+        editor.setCursor({ line: newCursor.line, ch: newCursor.ch + cursorOffset });
     }
 }
 

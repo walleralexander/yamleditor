@@ -385,6 +385,41 @@ $user = $auth->getCurrentUser();
             background: #bd93f9;
         }
 
+        /* Editor Toolbar */
+        .editor-toolbar {
+            display: none;
+            padding: 0.5rem;
+            background: #1e1f29;
+            border-bottom: 1px solid #44475a;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+        }
+
+        .editor-toolbar.active {
+            display: flex;
+        }
+
+        .toolbar-btn {
+            padding: 0.4rem 0.6rem;
+            background: #44475a;
+            color: #f8f8f2;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            min-width: 32px;
+        }
+
+        .toolbar-btn:hover {
+            background: #6272a4;
+        }
+
+        .toolbar-separator {
+            width: 1px;
+            background: #44475a;
+            margin: 0 0.25rem;
+        }
+
         .no-file-selected {
             display: flex;
             align-items: center;
@@ -541,6 +576,29 @@ $user = $auth->getCurrentUser();
                     <button class="btn-preview" id="btnPreview" style="display: none;" onclick="togglePreview()">Vorschau</button>
                     <button class="btn-save" id="btnSave" disabled onclick="saveFile()">Speichern</button>
                 </div>
+            </div>
+            <!-- Markdown Toolbar -->
+            <div class="editor-toolbar" id="editorToolbar">
+                <button class="toolbar-btn" onclick="insertFormat('bold')" title="Fett (Ctrl+B)"><b>B</b></button>
+                <button class="toolbar-btn" onclick="insertFormat('italic')" title="Kursiv (Ctrl+I)"><i>I</i></button>
+                <button class="toolbar-btn" onclick="insertFormat('strikethrough')" title="Durchgestrichen">S̶</button>
+                <div class="toolbar-separator"></div>
+                <button class="toolbar-btn" onclick="insertFormat('h1')" title="Überschrift 1">H1</button>
+                <button class="toolbar-btn" onclick="insertFormat('h2')" title="Überschrift 2">H2</button>
+                <button class="toolbar-btn" onclick="insertFormat('h3')" title="Überschrift 3">H3</button>
+                <div class="toolbar-separator"></div>
+                <button class="toolbar-btn" onclick="insertFormat('ul')" title="Liste">•</button>
+                <button class="toolbar-btn" onclick="insertFormat('ol')" title="Nummerierte Liste">1.</button>
+                <button class="toolbar-btn" onclick="insertFormat('checklist')" title="Checkliste">☑</button>
+                <div class="toolbar-separator"></div>
+                <button class="toolbar-btn" onclick="insertFormat('link')" title="Link">🔗</button>
+                <button class="toolbar-btn" onclick="insertFormat('image')" title="Bild">🖼</button>
+                <button class="toolbar-btn" onclick="insertFormat('code')" title="Code">&lt;/&gt;</button>
+                <button class="toolbar-btn" onclick="insertFormat('codeblock')" title="Code-Block">```</button>
+                <div class="toolbar-separator"></div>
+                <button class="toolbar-btn" onclick="insertFormat('quote')" title="Zitat">"</button>
+                <button class="toolbar-btn" onclick="insertFormat('hr')" title="Trennlinie">―</button>
+                <button class="toolbar-btn" onclick="insertFormat('table')" title="Tabelle">▦</button>
             </div>
             <div class="editor-container">
                 <div class="no-file-selected" id="noFileMessage">
