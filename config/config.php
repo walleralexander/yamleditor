@@ -40,7 +40,7 @@ if ($dbPath[0] === '/') {
 }
 
 // Erlaubte Dateiendungen
-define('ALLOWED_EXTENSIONS', ['yaml', 'yml', 'md', 'markdown']);
+define('ALLOWED_EXTENSIONS', ['yaml', 'yml', 'md', 'markdown', 'txt', 'json']);
 
 // Session-Einstellungen
 define('SESSION_LIFETIME', (int)(getenv('SESSION_LIFETIME') ?: 3600));

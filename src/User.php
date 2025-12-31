@@ -190,4 +190,34 @@ class User
 
         return null;
     }
+
+    /**
+     * Passwort ändern (mit Validierung des aktuellen Passworts)
+     */
+    public function changePassword(int $id, string $currentPassword, string $newPassword): bool
+    {
+        // Benutzer mit Passwort abrufen
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->execute([$id]);
+        $user = $stmt->fetch();
+
+        if (!$user) {
+            throw new Exception("Benutzer nicht gefunden");
+        }
+
+        // Aktuelles Passwort prüfen
+        if (!password_verify($currentPassword, $user['password'])) {
+            throw new Exception("Aktuelles Passwort ist falsch");
+        }
+
+        // Neues Passwort validieren
+        if (strlen($newPassword) < PASSWORD_MIN_LENGTH) {
+            throw new Exception("Neues Passwort muss mindestens " . PASSWORD_MIN_LENGTH . " Zeichen haben");
+        }
+
+        // Neues Passwort setzen
+        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+        $stmt = $this->db->prepare("UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+        return $stmt->execute([$hashedPassword, $id]);
+    }
 }

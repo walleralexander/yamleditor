@@ -88,6 +88,8 @@ class FileManager
         return match ($ext) {
             'yaml', 'yml' => 'yaml',
             'md', 'markdown' => 'markdown',
+            'json' => 'json',
+            'txt' => 'text',
             default => 'text'
         };
     }

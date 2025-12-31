@@ -1,12 +1,20 @@
 # YAML/MD Editor
 
-A simple web-based editor for YAML and Markdown files with user authentication.
+A simple web-based editor for YAML, Markdown, JSON, and text files with user authentication.
 
 ## Features
 
 - Split-view layout (file list left, editor right)
-- CodeMirror editor with syntax highlighting
-- YAML syntax validation before save
+- CodeMirror editor with syntax highlighting (Dracula theme)
+- Supported file formats: YAML, Markdown, JSON, TXT
+- Real-time linting for YAML and JSON with error markers
+- Syntax validation before save (YAML and JSON)
+- Markdown live preview with split view
+- Markdown formatting toolbar (bold, italic, headings, lists, links, code, tables, etc.)
+- Autosave for Markdown files (15 seconds after last change)
+- Automatic file backups with configurable retention
+- Keyboard shortcuts (Ctrl+S save, Ctrl+B bold, Ctrl+I italic)
+- Password change functionality for all users
 - User authentication with SQLite database
 - CRUD operations for files and users
 - Admin panel for user management

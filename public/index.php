@@ -167,8 +167,16 @@ $user = $auth->getCurrentUser();
             color: #f7df1e;
         }
 
-        .file-icon.md {
+        .file-icon.markdown {
             color: #42b983;
+        }
+
+        .file-icon.json {
+            color: #f0ad4e;
+        }
+
+        .file-icon.text {
+            color: #999;
         }
 
         .file-actions {
@@ -551,6 +559,7 @@ $user = $auth->getCurrentUser();
         <h1>YAML/MD Editor</h1>
         <div class="header-right">
             <span class="user-info">Angemeldet als: <?= htmlspecialchars($user['username']) ?></span>
+            <button class="header-btn secondary" onclick="showPasswordModal()">Passwort ändern</button>
             <?php if ($auth->isAdmin()): ?>
                 <a href="admin.php" class="header-btn secondary">Benutzer verwalten</a>
             <?php endif; ?>
@@ -639,7 +648,7 @@ $user = $auth->getCurrentUser();
     <!-- Fehler Modal -->
     <div class="modal-overlay" id="errorModal">
         <div class="modal" style="border-left: 4px solid #e74c3c;">
-            <h3 style="color: #e74c3c;">⚠️ Berechtigungsfehler</h3>
+            <h3 style="color: #e74c3c;">Berechtigungsfehler</h3>
             <p id="errorMessage" style="margin: 1rem 0; color: #ccc; line-height: 1.6;"></p>
             <p style="margin-bottom: 1rem; color: #888; font-size: 0.9rem;">
                 Führen Sie den angegebenen Befehl auf dem Host-System aus und versuchen Sie es erneut.
@@ -650,12 +659,27 @@ $user = $auth->getCurrentUser();
         </div>
     </div>
 
+    <!-- Passwort ändern Modal -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="modal">
+            <h3>Passwort ändern</h3>
+            <input type="password" class="modal-input" id="currentPassword" placeholder="Aktuelles Passwort">
+            <input type="password" class="modal-input" id="newPassword" placeholder="Neues Passwort">
+            <input type="password" class="modal-input" id="confirmPassword" placeholder="Neues Passwort bestätigen">
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="hidePasswordModal()">Abbrechen</button>
+                <button class="modal-btn primary" onclick="changePassword()">Ändern</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/yaml/yaml.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/markdown/markdown.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/lint/lint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>

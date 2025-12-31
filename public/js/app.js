@@ -7,6 +7,8 @@ let currentFile = null;
 let isModified = false;
 let fileToDelete = null;
 let previewActive = false;
+let autosaveTimer = null;
+const AUTOSAVE_DELAY = 15000; // 15 Sekunden
 
 // YAML Linter für CodeMirror registrieren
 CodeMirror.registerHelper('lint', 'yaml', function(text) {
@@ -23,6 +25,35 @@ CodeMirror.registerHelper('lint', 'yaml', function(text) {
             from: CodeMirror.Pos(line, col),
             to: CodeMirror.Pos(line, col + 1),
             message: e.reason || e.message,
+            severity: 'error'
+        });
+    }
+    return errors;
+});
+
+// JSON Linter für CodeMirror registrieren
+CodeMirror.registerHelper('lint', 'json', function(text) {
+    const errors = [];
+    if (!text.trim()) {
+        return errors;
+    }
+    try {
+        JSON.parse(text);
+    } catch (e) {
+        // Versuche Zeile und Spalte aus der Fehlermeldung zu extrahieren
+        let line = 0;
+        let col = 0;
+        const match = e.message.match(/position (\d+)/);
+        if (match) {
+            const pos = parseInt(match[1]);
+            const lines = text.substring(0, pos).split('\n');
+            line = lines.length - 1;
+            col = lines[lines.length - 1].length;
+        }
+        errors.push({
+            from: CodeMirror.Pos(line, col),
+            to: CodeMirror.Pos(line, col + 1),
+            message: e.message,
             severity: 'error'
         });
     }
@@ -63,6 +94,15 @@ function initEditor() {
             if (previewActive) {
                 updatePreview();
             }
+            // Autosave für Markdown-Dateien
+            if (isMarkdownFile(currentFile)) {
+                clearTimeout(autosaveTimer);
+                autosaveTimer = setTimeout(() => {
+                    if (isModified && currentFile && isMarkdownFile(currentFile)) {
+                        autosave();
+                    }
+                }, AUTOSAVE_DELAY);
+            }
         }
     });
 
@@ -92,6 +132,46 @@ function updateSaveButton() {
     btn.disabled = !isModified || !currentFile;
 }
 
+// Prüft ob Datei eine Markdown-Datei ist
+function isMarkdownFile(filename) {
+    if (!filename) return false;
+    const lower = filename.toLowerCase();
+    return lower.endsWith('.md') || lower.endsWith('.markdown');
+}
+
+// Autosave-Funktion (ohne Validierung, nur für Markdown)
+async function autosave() {
+    if (!currentFile || !isModified || !isMarkdownFile(currentFile)) return;
+
+    try {
+        const response = await fetch('api/files.php', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                filename: currentFile,
+                content: editor.getValue()
+            })
+        });
+
+        if (!response.ok) {
+            console.error('Autosave failed:', response.status);
+            return;
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+            isModified = false;
+            updateSaveButton();
+            showToast('Automatisch gespeichert', 'success');
+        }
+    } catch (error) {
+        console.error('Autosave error:', error);
+    }
+}
+
 // Dateien laden
 async function loadFiles() {
     try {
@@ -119,7 +199,7 @@ function renderFileList(files) {
     container.innerHTML = files.map(file => `
         <div class="file-item ${currentFile === file.name ? 'active' : ''}" onclick="openFile('${escapeHtml(file.name)}')">
             <div class="file-name">
-                <span class="file-icon ${file.type}">${file.type === 'yaml' ? '📄' : '📝'}</span>
+                <span class="file-icon ${file.type}">${getFileIcon(file.type)}</span>
                 <span>${escapeHtml(file.name)}</span>
             </div>
             <div class="file-actions">
@@ -127,6 +207,16 @@ function renderFileList(files) {
             </div>
         </div>
     `).join('');
+}
+
+function getFileIcon(type) {
+    switch (type) {
+        case 'yaml': return '📄';
+        case 'markdown': return '📝';
+        case 'json': return '📋';
+        case 'text': return '📃';
+        default: return '📄';
+    }
 }
 
 // Datei öffnen
@@ -146,18 +236,33 @@ async function openFile(filename) {
             currentFile = filename;
 
             // Editor-Modus setzen
-            const mode = result.data.type === 'yaml' ? 'yaml' : 'markdown';
-            const isMarkdown = mode === 'markdown';
+            const fileType = result.data.type;
+            let mode = 'text';
+            if (fileType === 'yaml') mode = 'yaml';
+            else if (fileType === 'markdown') mode = 'markdown';
+            else if (fileType === 'json') mode = 'application/json';
+            else mode = 'text';
+
+            const isMarkdown = fileType === 'markdown';
+            const isYaml = fileType === 'yaml';
+            const isJson = fileType === 'json';
+
             editor.setOption('mode', mode);
 
-            // Linting nur für YAML aktivieren
-            editor.setOption('lint', mode === 'yaml' ? { getAnnotations: CodeMirror.lint.yaml } : false);
+            // Linting für YAML und JSON aktivieren
+            if (isYaml) {
+                editor.setOption('lint', { getAnnotations: CodeMirror.lint.yaml });
+            } else if (isJson) {
+                editor.setOption('lint', { getAnnotations: CodeMirror.lint.json });
+            } else {
+                editor.setOption('lint', false);
+            }
 
             // Preview-Button und Toolbar nur für Markdown anzeigen
             document.getElementById('btnPreview').style.display = isMarkdown ? 'inline-block' : 'none';
             document.getElementById('editorToolbar').classList.toggle('active', isMarkdown);
 
-            // Preview zurücksetzen wenn auf YAML gewechselt wird
+            // Preview zurücksetzen wenn nicht Markdown
             if (!isMarkdown && previewActive) {
                 hidePreview();
             }
@@ -213,19 +318,62 @@ function validateYaml(content) {
     }
 }
 
+// JSON validieren
+function validateJson(content) {
+    if (!content.trim()) {
+        return { valid: true }; // Leere Datei ist OK
+    }
+
+    try {
+        JSON.parse(content);
+        return { valid: true };
+    } catch (e) {
+        let line = null;
+        const match = e.message.match(/position (\d+)/);
+        if (match) {
+            const pos = parseInt(match[1]);
+            const lines = content.substring(0, pos).split('\n');
+            line = lines.length;
+        }
+        return {
+            valid: false,
+            message: e.message,
+            line: line
+        };
+    }
+}
+
 // Datei speichern
 async function saveFile() {
     if (!currentFile || !isModified) return;
 
+    const lower = currentFile.toLowerCase();
+    const isYaml = lower.endsWith('.yaml') || lower.endsWith('.yml');
+    const isJson = lower.endsWith('.json');
+
     // YAML-Dateien vor dem Speichern validieren
-    const isYaml = currentFile.toLowerCase().endsWith('.yaml') || currentFile.toLowerCase().endsWith('.yml');
     if (isYaml) {
         const validation = validateYaml(editor.getValue());
         if (!validation.valid) {
             let errorMsg = 'YAML-Syntaxfehler';
             if (validation.line) {
                 errorMsg += ` in Zeile ${validation.line}`;
-                // Zur fehlerhaften Zeile springen
+                editor.setCursor(validation.line - 1, 0);
+                editor.focus();
+            }
+            errorMsg += `: ${validation.message}`;
+            showToast(errorMsg, 'error');
+            return;
+        }
+    }
+
+    // JSON-Dateien vor dem Speichern validieren
+    if (isJson) {
+        const validation = validateJson(editor.getValue());
+        if (!validation.valid) {
+            let errorMsg = 'JSON-Syntaxfehler';
+            if (validation.line) {
+                errorMsg += ` in Zeile ${validation.line}`;
                 editor.setCursor(validation.line - 1, 0);
                 editor.focus();
             }
@@ -288,11 +436,11 @@ async function createNewFile() {
     }
 
     // Prüfen ob gültige Endung
-    const validExtensions = ['.yaml', '.yml', '.md', '.markdown'];
+    const validExtensions = ['.yaml', '.yml', '.md', '.markdown', '.txt', '.json'];
     const hasValidExtension = validExtensions.some(ext => filename.toLowerCase().endsWith(ext));
 
     if (!hasValidExtension) {
-        showToast('Ungültige Dateiendung. Erlaubt: yaml, yml, md, markdown', 'error');
+        showToast('Ungültige Dateiendung. Erlaubt: yaml, yml, md, markdown, txt, json', 'error');
         return;
     }
 
@@ -398,6 +546,60 @@ function showErrorModal(message) {
 
 function hideErrorModal() {
     document.getElementById('errorModal').classList.remove('active');
+}
+
+// Passwort ändern Modal
+function showPasswordModal() {
+    document.getElementById('passwordModal').classList.add('active');
+    document.getElementById('currentPassword').value = '';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmPassword').value = '';
+    document.getElementById('currentPassword').focus();
+}
+
+function hidePasswordModal() {
+    document.getElementById('passwordModal').classList.remove('active');
+}
+
+async function changePassword() {
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+        showToast('Alle Felder müssen ausgefüllt werden', 'error');
+        return;
+    }
+
+    if (newPassword !== confirmPassword) {
+        showToast('Neue Passwörter stimmen nicht überein', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('api/password.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword,
+                confirm_password: confirmPassword
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            hidePasswordModal();
+            showToast('Passwort erfolgreich geändert', 'success');
+        } else {
+            showToast(result.error || 'Fehler beim Ändern des Passworts', 'error');
+        }
+    } catch (error) {
+        showToast('Netzwerkfehler', 'error');
+    }
 }
 
 // Hilfsfunktion für HTML-Escaping
