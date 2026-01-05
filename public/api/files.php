@@ -36,6 +36,11 @@ if (!$auth->isLoggedIn()) {
 $fileManager = new FileManager();
 $method = $_SERVER['REQUEST_METHOD'];
 
+// CSRF-Schutz für modifizierende Requests
+if (in_array($method, ['POST', 'PUT', 'DELETE', 'PATCH'])) {
+    $auth->requireCsrfToken();
+}
+
 try {
     switch ($method) {
         case 'GET':
@@ -98,6 +103,22 @@ try {
 
             $fileManager->delete($filename);
             echo json_encode(['success' => true, 'message' => 'Datei gelöscht']);
+            break;
+
+        case 'PATCH':
+            // Datei umbenennen
+            $input = json_decode(file_get_contents('php://input'), true);
+            $oldName = $input['oldName'] ?? '';
+            $newName = $input['newName'] ?? '';
+
+            if (empty($oldName) || empty($newName)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Alter und neuer Dateiname erforderlich']);
+                break;
+            }
+
+            $fileManager->rename($oldName, $newName);
+            echo json_encode(['success' => true, 'message' => 'Datei umbenannt']);
             break;
 
         default:

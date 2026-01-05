@@ -10,12 +10,14 @@ $auth = new Auth();
 $auth->requireLogin();
 
 $user = $auth->getCurrentUser();
+$csrfToken = $auth->getCsrfToken();
 ?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?= htmlspecialchars($csrfToken) ?>">
     <title>YAML/MD Editor</title>
     <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
@@ -26,6 +28,36 @@ $user = $auth->getCurrentUser();
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/lint/lint.min.css">
     <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-tertiary: #0f3460;
+            --text-primary: #fff;
+            --text-secondary: #ccc;
+            --text-muted: #888;
+            --accent: #4a90d9;
+            --accent-hover: #357abd;
+            --border: #0f3460;
+            --sidebar-bg: #16213e;
+            --editor-bg: #1a1a2e;
+            --preview-bg: #1e1e2e;
+        }
+
+        body.light-theme {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #e0e0e0;
+            --text-primary: #1a1a2e;
+            --text-secondary: #333;
+            --text-muted: #666;
+            --accent: #4a90d9;
+            --accent-hover: #357abd;
+            --border: #ddd;
+            --sidebar-bg: #ffffff;
+            --editor-bg: #fafafa;
+            --preview-bg: #ffffff;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -34,26 +66,27 @@ $user = $auth->getCurrentUser();
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: #1a1a2e;
-            color: #fff;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             height: 100vh;
             display: flex;
             flex-direction: column;
+            transition: background 0.3s, color 0.3s;
         }
 
         /* Header */
         .header {
-            background: #16213e;
+            background: var(--bg-secondary);
             padding: 0.75rem 1rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #0f3460;
+            border-bottom: 1px solid var(--border);
         }
 
         .header h1 {
             font-size: 1.25rem;
-            color: #4a90d9;
+            color: var(--accent);
         }
 
         .header-right {
@@ -90,6 +123,36 @@ $user = $auth->getCurrentUser();
             background: #555;
         }
 
+        .font-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: var(--bg-tertiary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 5px;
+        }
+
+        .font-btn {
+            padding: 0.25rem 0.5rem;
+            background: transparent;
+            color: var(--text-primary);
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .font-btn:hover {
+            color: var(--accent);
+        }
+
+        #fontSizeDisplay {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            min-width: 35px;
+            text-align: center;
+        }
+
         /* Main Container */
         .main-container {
             display: flex;
@@ -100,15 +163,15 @@ $user = $auth->getCurrentUser();
         /* Sidebar */
         .sidebar {
             width: 280px;
-            background: #16213e;
-            border-right: 1px solid #0f3460;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
         }
 
         .sidebar-header {
             padding: 1rem;
-            border-bottom: 1px solid #0f3460;
+            border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -116,7 +179,7 @@ $user = $auth->getCurrentUser();
 
         .sidebar-header h2 {
             font-size: 1rem;
-            color: #fff;
+            color: var(--text-primary);
         }
 
         .btn-new {
@@ -151,11 +214,11 @@ $user = $auth->getCurrentUser();
         }
 
         .file-item:hover {
-            background: #0f3460;
+            background: var(--bg-tertiary);
         }
 
         .file-item.active {
-            background: #4a90d9;
+            background: var(--accent);
         }
 
         .file-name {
@@ -196,7 +259,7 @@ $user = $auth->getCurrentUser();
         .file-action-btn {
             padding: 0.25rem 0.5rem;
             background: transparent;
-            color: #fff;
+            color: var(--text-primary);
             border: none;
             cursor: pointer;
             font-size: 0.8rem;
@@ -280,8 +343,8 @@ $user = $auth->getCurrentUser();
             flex: 1;
             overflow: auto;
             padding: 1rem;
-            background: #1e1f29;
-            border-left: 1px solid #44475a;
+            background: var(--preview-bg);
+            border-left: 1px solid var(--border);
             display: none;
             min-width: 0;
         }
@@ -292,16 +355,16 @@ $user = $auth->getCurrentUser();
 
         .preview-pane h1, .preview-pane h2, .preview-pane h3,
         .preview-pane h4, .preview-pane h5, .preview-pane h6 {
-            color: #f8f8f2;
+            color: var(--text-primary);
             margin: 1rem 0 0.5rem 0;
         }
 
-        .preview-pane h1 { font-size: 2rem; border-bottom: 1px solid #44475a; padding-bottom: 0.3rem; }
-        .preview-pane h2 { font-size: 1.5rem; border-bottom: 1px solid #44475a; padding-bottom: 0.3rem; }
+        .preview-pane h1 { font-size: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+        .preview-pane h2 { font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
         .preview-pane h3 { font-size: 1.25rem; }
 
         .preview-pane p {
-            color: #ccc;
+            color: var(--text-secondary);
             line-height: 1.6;
             margin: 0.5rem 0;
         }
@@ -396,6 +459,21 @@ $user = $auth->getCurrentUser();
 
         .btn-preview.active {
             background: #bd93f9;
+        }
+
+        .btn-export {
+            padding: 0.5rem 0.75rem;
+            background: #50fa7b;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+
+        .btn-export:hover {
+            background: #69fb8f;
         }
 
         /* Editor Toolbar */
@@ -552,19 +630,103 @@ $user = $auth->getCurrentUser();
         }
 
         /* Responsive */
+        /* Sidebar Toggle Button */
+        .sidebar-toggle {
+            display: none;
+            padding: 0.5rem;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
         @media (max-width: 768px) {
+            .sidebar-toggle {
+                display: block;
+            }
+
+            .header h1 {
+                font-size: 1rem;
+            }
+
+            .header-right {
+                gap: 0.5rem;
+            }
+
+            .user-info {
+                display: none;
+            }
+
+            .font-controls {
+                display: none;
+            }
+
             .sidebar {
-                width: 200px;
+                position: fixed;
+                left: -280px;
+                top: 0;
+                height: 100vh;
+                z-index: 100;
+                transition: left 0.3s ease;
+                width: 280px;
+            }
+
+            .sidebar.open {
+                left: 0;
+            }
+
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 99;
+            }
+
+            .sidebar-overlay.active {
+                display: block;
+            }
+
+            .editor-pane {
+                width: 100% !important;
+            }
+
+            .preview-pane.active {
+                position: fixed;
+                top: 60px;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 50;
+            }
+
+            .modal {
+                min-width: auto !important;
+                width: 90%;
+                margin: 1rem;
             }
         }
     </style>
 </head>
 <body>
     <header class="header">
+        <button class="sidebar-toggle" onclick="toggleSidebar()" title="Dateien">☰</button>
         <h1>YAML/MD Editor</h1>
         <div class="header-right">
             <span class="user-info">Angemeldet als: <?= htmlspecialchars($user['username']) ?></span>
+            <span class="font-controls">
+                <button class="font-btn" onclick="changeFontSize(-1)" title="Schrift kleiner">A-</button>
+                <span id="fontSizeDisplay">14px</span>
+                <button class="font-btn" onclick="changeFontSize(1)" title="Schrift größer">A+</button>
+            </span>
+            <button class="header-btn secondary" id="themeToggle" onclick="toggleTheme()" title="Theme wechseln">🌙</button>
             <button class="header-btn secondary" onclick="showPasswordModal()">Passwort ändern</button>
+            <button class="header-btn secondary" onclick="showShortcutsModal()" title="Tastaturkürzel">⌨️ Hilfe</button>
             <?php if ($auth->isAdmin()): ?>
                 <a href="admin.php" class="header-btn secondary">Benutzer verwalten</a>
             <?php endif; ?>
@@ -572,8 +734,10 @@ $user = $auth->getCurrentUser();
         </div>
     </header>
 
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
     <div class="main-container">
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2>Dateien</h2>
                 <button class="btn-new" onclick="showNewFileModal()">+ Neu</button>
@@ -588,6 +752,8 @@ $user = $auth->getCurrentUser();
                 <span class="editor-title" id="editorTitle">Keine Datei ausgewählt</span>
                 <div class="editor-actions">
                     <button class="btn-preview" id="btnPreview" style="display: none;" onclick="togglePreview()">Vorschau</button>
+                    <button class="btn-export" id="btnExportHtml" style="display: none;" onclick="exportAsHtml()" title="Als HTML exportieren">HTML</button>
+                    <button class="btn-export" id="btnExportPdf" style="display: none;" onclick="exportAsPdf()" title="Als PDF drucken">PDF</button>
                     <button class="btn-save" id="btnSave" disabled onclick="saveFile()">Speichern</button>
                 </div>
             </div>
@@ -650,6 +816,19 @@ $user = $auth->getCurrentUser();
         </div>
     </div>
 
+    <!-- Modal für Datei umbenennen -->
+    <div class="modal-overlay" id="renameModal">
+        <div class="modal">
+            <h3>Datei umbenennen</h3>
+            <p style="margin-bottom: 0.5rem; color: #888; font-size: 0.9rem;">Alter Name: <span id="oldFileName"></span></p>
+            <input type="text" class="modal-input" id="renameFileName" placeholder="Neuer Dateiname">
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="hideRenameModal()">Abbrechen</button>
+                <button class="modal-btn primary" onclick="confirmRename()">Umbenennen</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Fehler Modal -->
     <div class="modal-overlay" id="errorModal">
         <div class="modal" style="border-left: 4px solid #e74c3c;">
@@ -678,6 +857,46 @@ $user = $auth->getCurrentUser();
         </div>
     </div>
 
+    <!-- Tastaturkürzel Modal -->
+    <div class="modal-overlay" id="shortcutsModal">
+        <div class="modal" style="min-width: 500px;">
+            <h3>Tastaturkürzel</h3>
+            <div style="margin: 1rem 0;">
+                <h4 style="color: #4a90d9; margin-bottom: 0.5rem; font-size: 0.9rem;">Allgemein</h4>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="border-bottom: 1px solid #0f3460;">
+                        <td style="padding: 0.5rem 0; color: #ccc;"><kbd style="background: #0f3460; padding: 0.2rem 0.5rem; border-radius: 3px;">Ctrl + S</kbd></td>
+                        <td style="padding: 0.5rem 0; color: #888;">Datei speichern</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #0f3460;">
+                        <td style="padding: 0.5rem 0; color: #ccc;"><kbd style="background: #0f3460; padding: 0.2rem 0.5rem; border-radius: 3px;">Tab</kbd></td>
+                        <td style="padding: 0.5rem 0; color: #888;">2 Leerzeichen einfügen</td>
+                    </tr>
+                </table>
+
+                <h4 style="color: #4a90d9; margin: 1rem 0 0.5rem; font-size: 0.9rem;">Markdown-Formatierung</h4>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="border-bottom: 1px solid #0f3460;">
+                        <td style="padding: 0.5rem 0; color: #ccc;"><kbd style="background: #0f3460; padding: 0.2rem 0.5rem; border-radius: 3px;">Ctrl + B</kbd></td>
+                        <td style="padding: 0.5rem 0; color: #888;">Fett</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #0f3460;">
+                        <td style="padding: 0.5rem 0; color: #ccc;"><kbd style="background: #0f3460; padding: 0.2rem 0.5rem; border-radius: 3px;">Ctrl + I</kbd></td>
+                        <td style="padding: 0.5rem 0; color: #888;">Kursiv</td>
+                    </tr>
+                </table>
+
+                <h4 style="color: #4a90d9; margin: 1rem 0 0.5rem; font-size: 0.9rem;">Toolbar-Buttons (Markdown)</h4>
+                <p style="color: #888; font-size: 0.9rem; line-height: 1.6;">
+                    Überschriften (H1, H2, H3) • Fett, Kursiv, Durchgestrichen • Listen (ungeordnet, nummeriert, Checkliste) • Links, Bilder • Code, Codeblock • Zitat, Trennlinie, Tabelle
+                </p>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn primary" onclick="hideShortcutsModal()">Schließen</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
@@ -688,6 +907,7 @@ $user = $auth->getCurrentUser();
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/lint/lint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

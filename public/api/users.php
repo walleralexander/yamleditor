@@ -28,6 +28,11 @@ if (!$auth->isAdmin()) {
 $userModel = new User();
 $method = $_SERVER['REQUEST_METHOD'];
 
+// CSRF-Schutz für modifizierende Requests
+if (in_array($method, ['POST', 'PUT', 'DELETE'])) {
+    $auth->requireCsrfToken();
+}
+
 try {
     switch ($method) {
         case 'GET':

@@ -11,12 +11,14 @@ $auth = new Auth();
 $auth->requireAdmin();
 
 $user = $auth->getCurrentUser();
+$csrfToken = $auth->getCsrfToken();
 ?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?= htmlspecialchars($csrfToken) ?>">
     <title>Benutzerverwaltung - YAML/MD Editor</title>
     <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png">
@@ -445,6 +447,21 @@ $user = $auth->getCurrentUser();
         let userToDelete = null;
         let isEditMode = false;
 
+        // CSRF Token für API-Requests
+        function getCsrfToken() {
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            return meta ? meta.getAttribute('content') : '';
+        }
+
+        // Fetch-Wrapper mit CSRF-Token
+        function apiFetch(url, options = {}) {
+            const defaultHeaders = {
+                'X-CSRF-Token': getCsrfToken()
+            };
+            options.headers = { ...defaultHeaders, ...options.headers };
+            return fetch(url, options);
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             loadUsers();
         });
@@ -530,7 +547,7 @@ $user = $auth->getCurrentUser();
             }
 
             try {
-                const response = await fetch('api/users.php', {
+                const response = await apiFetch('api/users.php', {
                     method: isEditMode ? 'PUT' : 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -565,7 +582,7 @@ $user = $auth->getCurrentUser();
             if (!userToDelete) return;
 
             try {
-                const response = await fetch(`api/users.php?id=${userToDelete}`, {
+                const response = await apiFetch(`api/users.php?id=${userToDelete}`, {
                     method: 'DELETE'
                 });
 
@@ -654,7 +671,7 @@ $user = $auth->getCurrentUser();
             if (!importData || !importData.users) return;
 
             try {
-                const response = await fetch('api/users.php', {
+                const response = await apiFetch('api/users.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

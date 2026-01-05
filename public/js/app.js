@@ -6,9 +6,25 @@ let editor = null;
 let currentFile = null;
 let isModified = false;
 let fileToDelete = null;
+let fileToRename = null;
 let previewActive = false;
 let autosaveTimer = null;
 const AUTOSAVE_DELAY = 15000; // 15 Sekunden
+
+// CSRF Token für API-Requests
+function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+}
+
+// Fetch-Wrapper mit CSRF-Token
+function apiFetch(url, options = {}) {
+    const defaultHeaders = {
+        'X-CSRF-Token': getCsrfToken()
+    };
+    options.headers = { ...defaultHeaders, ...options.headers };
+    return fetch(url, options);
+}
 
 // YAML Linter für CodeMirror registrieren
 CodeMirror.registerHelper('lint', 'yaml', function(text) {
@@ -60,8 +76,66 @@ CodeMirror.registerHelper('lint', 'json', function(text) {
     return errors;
 });
 
+// Theme Management
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+        document.getElementById('themeToggle').textContent = '☀️';
+    }
+}
+
+function toggleTheme() {
+    const isLight = document.body.classList.toggle('light-theme');
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    document.getElementById('themeToggle').textContent = isLight ? '☀️' : '🌙';
+
+    // CodeMirror Theme wechseln
+    if (editor) {
+        editor.setOption('theme', isLight ? 'default' : 'dracula');
+    }
+}
+
+// Font Size Management
+let currentFontSize = parseInt(localStorage.getItem('fontSize')) || 14;
+
+function initFontSize() {
+    document.getElementById('fontSizeDisplay').textContent = currentFontSize + 'px';
+    applyFontSize();
+}
+
+function changeFontSize(delta) {
+    const newSize = currentFontSize + delta;
+    if (newSize >= 10 && newSize <= 24) {
+        currentFontSize = newSize;
+        localStorage.setItem('fontSize', currentFontSize);
+        document.getElementById('fontSizeDisplay').textContent = currentFontSize + 'px';
+        applyFontSize();
+    }
+}
+
+function applyFontSize() {
+    if (editor) {
+        editor.getWrapperElement().style.fontSize = currentFontSize + 'px';
+        editor.refresh();
+    }
+}
+
+// Mobile Sidebar Toggle
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('active');
+}
+
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('active');
+}
+
 // Editor initialisieren
 document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+    initFontSize();
     initEditor();
     loadFiles();
 });
@@ -70,8 +144,9 @@ function initEditor() {
     const textarea = document.getElementById('editor');
     textarea.style.display = 'none';
 
+    const isLight = document.body.classList.contains('light-theme');
     editor = CodeMirror.fromTextArea(textarea, {
-        theme: 'dracula',
+        theme: isLight ? 'default' : 'dracula',
         lineNumbers: true,
         lineWrapping: true,
         indentUnit: 2,
@@ -84,6 +159,7 @@ function initEditor() {
 
     editor.setSize('100%', '100%');
     editor.getWrapperElement().style.display = 'none';
+    applyFontSize();
 
     // Änderungen tracken
     editor.on('change', () => {
@@ -144,7 +220,7 @@ async function autosave() {
     if (!currentFile || !isModified || !isMarkdownFile(currentFile)) return;
 
     try {
-        const response = await fetch('api/files.php', {
+        const response = await apiFetch('api/files.php', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -203,6 +279,7 @@ function renderFileList(files) {
                 <span>${escapeHtml(file.name)}</span>
             </div>
             <div class="file-actions">
+                <button class="file-action-btn rename" onclick="event.stopPropagation(); showRenameModal('${escapeHtml(file.name)}')" title="Umbenennen">✏️</button>
                 <button class="file-action-btn delete" onclick="event.stopPropagation(); showDeleteModal('${escapeHtml(file.name)}')" title="Löschen">🗑️</button>
             </div>
         </div>
@@ -258,8 +335,10 @@ async function openFile(filename) {
                 editor.setOption('lint', false);
             }
 
-            // Preview-Button und Toolbar nur für Markdown anzeigen
+            // Preview-Button, Export-Buttons und Toolbar nur für Markdown anzeigen
             document.getElementById('btnPreview').style.display = isMarkdown ? 'inline-block' : 'none';
+            document.getElementById('btnExportHtml').style.display = isMarkdown ? 'inline-block' : 'none';
+            document.getElementById('btnExportPdf').style.display = isMarkdown ? 'inline-block' : 'none';
             document.getElementById('editorToolbar').classList.toggle('active', isMarkdown);
 
             // Preview zurücksetzen wenn nicht Markdown
@@ -290,6 +369,9 @@ async function openFile(filename) {
             if (previewActive && isMarkdown) {
                 updatePreview();
             }
+
+            // Sidebar auf Mobilgeräten schließen
+            closeSidebar();
         } else {
             showToast(result.error || 'Fehler beim Öffnen der Datei', 'error');
         }
@@ -384,7 +466,7 @@ async function saveFile() {
     }
 
     try {
-        const response = await fetch('api/files.php', {
+        const response = await apiFetch('api/files.php', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -445,7 +527,7 @@ async function createNewFile() {
     }
 
     try {
-        const response = await fetch('api/files.php', {
+        const response = await apiFetch('api/files.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -483,11 +565,88 @@ function hideDeleteModal() {
     fileToDelete = null;
 }
 
+// Umbenennen Modal
+function showRenameModal(filename) {
+    fileToRename = filename;
+    document.getElementById('oldFileName').textContent = filename;
+    document.getElementById('renameFileName').value = filename;
+    document.getElementById('renameModal').classList.add('active');
+    const input = document.getElementById('renameFileName');
+    input.focus();
+    // Dateiname ohne Extension selektieren
+    const lastDot = filename.lastIndexOf('.');
+    if (lastDot > 0) {
+        input.setSelectionRange(0, lastDot);
+    }
+}
+
+function hideRenameModal() {
+    document.getElementById('renameModal').classList.remove('active');
+    fileToRename = null;
+}
+
+async function confirmRename() {
+    if (!fileToRename) return;
+
+    const newName = document.getElementById('renameFileName').value.trim();
+
+    if (!newName) {
+        showToast('Bitte neuen Dateinamen eingeben', 'error');
+        return;
+    }
+
+    if (newName === fileToRename) {
+        hideRenameModal();
+        return;
+    }
+
+    // Prüfen ob gültige Endung
+    const validExtensions = ['.yaml', '.yml', '.md', '.markdown', '.txt', '.json'];
+    const hasValidExtension = validExtensions.some(ext => newName.toLowerCase().endsWith(ext));
+
+    if (!hasValidExtension) {
+        showToast('Ungültige Dateiendung. Erlaubt: yaml, yml, md, markdown, txt, json', 'error');
+        return;
+    }
+
+    try {
+        const response = await apiFetch('api/files.php', {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                oldName: fileToRename,
+                newName: newName
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            hideRenameModal();
+            showToast('Datei umbenannt', 'success');
+
+            // Wenn die umbenannte Datei gerade geöffnet war, neue Datei öffnen
+            if (currentFile === fileToRename) {
+                currentFile = newName;
+                document.getElementById('editorTitle').textContent = newName;
+            }
+
+            loadFiles();
+        } else {
+            showToast(result.error || 'Fehler beim Umbenennen', 'error');
+        }
+    } catch (error) {
+        showToast('Netzwerkfehler', 'error');
+    }
+}
+
 async function confirmDelete() {
     if (!fileToDelete) return;
 
     try {
-        const response = await fetch(`api/files.php?file=${encodeURIComponent(fileToDelete)}`, {
+        const response = await apiFetch(`api/files.php?file=${encodeURIComponent(fileToDelete)}`, {
             method: 'DELETE'
         });
 
@@ -561,6 +720,15 @@ function hidePasswordModal() {
     document.getElementById('passwordModal').classList.remove('active');
 }
 
+// Tastaturkürzel Modal
+function showShortcutsModal() {
+    document.getElementById('shortcutsModal').classList.add('active');
+}
+
+function hideShortcutsModal() {
+    document.getElementById('shortcutsModal').classList.remove('active');
+}
+
 async function changePassword() {
     const currentPassword = document.getElementById('currentPassword').value;
     const newPassword = document.getElementById('newPassword').value;
@@ -577,7 +745,7 @@ async function changePassword() {
     }
 
     try {
-        const response = await fetch('api/password.php', {
+        const response = await apiFetch('api/password.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -643,10 +811,118 @@ function updatePreview() {
             breaks: true,
             gfm: true
         });
-        previewPane.innerHTML = marked.parse(content);
+        const rawHtml = marked.parse(content);
+        // XSS-Schutz mit DOMPurify
+        if (typeof DOMPurify !== 'undefined') {
+            previewPane.innerHTML = DOMPurify.sanitize(rawHtml);
+        } else {
+            previewPane.innerHTML = rawHtml;
+        }
     } else {
         previewPane.innerHTML = '<p style="color: #e74c3c;">Markdown-Parser nicht geladen</p>';
     }
+}
+
+// Export als HTML
+function exportAsHtml() {
+    if (!currentFile || !isMarkdownFile(currentFile)) return;
+
+    const content = editor.getValue();
+    if (typeof marked === 'undefined') {
+        showToast('Markdown-Parser nicht geladen', 'error');
+        return;
+    }
+
+    marked.setOptions({ breaks: true, gfm: true });
+    let html = marked.parse(content);
+    if (typeof DOMPurify !== 'undefined') {
+        html = DOMPurify.sanitize(html);
+    }
+
+    const fullHtml = `<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${escapeHtml(currentFile.replace(/\.[^/.]+$/, ''))}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #333; }
+        h1, h2, h3 { color: #1a1a2e; border-bottom: 1px solid #eee; padding-bottom: 0.3rem; }
+        pre { background: #f5f5f5; padding: 1rem; border-radius: 5px; overflow-x: auto; }
+        code { background: #f0f0f0; padding: 0.2rem 0.4rem; border-radius: 3px; font-family: monospace; }
+        pre code { background: none; padding: 0; }
+        blockquote { border-left: 4px solid #4a90d9; margin: 1rem 0; padding-left: 1rem; color: #666; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+        th { background: #f5f5f5; }
+        a { color: #4a90d9; }
+        img { max-width: 100%; height: auto; }
+    </style>
+</head>
+<body>
+${html}
+</body>
+</html>`;
+
+    const blob = new Blob([fullHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = currentFile.replace(/\.[^/.]+$/, '.html');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('HTML exportiert', 'success');
+}
+
+// Export als PDF (über Druckdialog)
+function exportAsPdf() {
+    if (!currentFile || !isMarkdownFile(currentFile)) return;
+
+    const content = editor.getValue();
+    if (typeof marked === 'undefined') {
+        showToast('Markdown-Parser nicht geladen', 'error');
+        return;
+    }
+
+    marked.setOptions({ breaks: true, gfm: true });
+    let html = marked.parse(content);
+    if (typeof DOMPurify !== 'undefined') {
+        html = DOMPurify.sanitize(html);
+    }
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>${escapeHtml(currentFile.replace(/\.[^/.]+$/, ''))}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 100%; margin: 2rem; line-height: 1.6; color: #333; }
+        h1, h2, h3 { color: #1a1a2e; border-bottom: 1px solid #eee; padding-bottom: 0.3rem; }
+        pre { background: #f5f5f5; padding: 1rem; border-radius: 5px; overflow-x: auto; }
+        code { background: #f0f0f0; padding: 0.2rem 0.4rem; border-radius: 3px; font-family: monospace; }
+        pre code { background: none; padding: 0; }
+        blockquote { border-left: 4px solid #4a90d9; margin: 1rem 0; padding-left: 1rem; color: #666; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+        th { background: #f5f5f5; }
+        a { color: #4a90d9; }
+        img { max-width: 100%; height: auto; }
+        @media print { body { margin: 0; } }
+    </style>
+</head>
+<body>
+${html}
+</body>
+</html>`);
+    printWindow.document.close();
+
+    printWindow.onload = function() {
+        printWindow.print();
+    };
 }
 
 // Markdown Formatierung einfügen
@@ -733,6 +1009,12 @@ function insertFormat(type) {
 document.getElementById('newFileName').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         createNewFile();
+    }
+});
+
+document.getElementById('renameFileName').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        confirmRename();
     }
 });
 

@@ -5,8 +5,10 @@
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../src/Auth.php';
+require_once __DIR__ . '/../src/RateLimiter.php';
 
 $auth = new Auth();
+$rateLimiter = new RateLimiter();
 
 // Wenn bereits eingeloggt, zur Hauptseite weiterleiten
 if ($auth->isLoggedIn()) {
@@ -15,19 +17,38 @@ if ($auth->isLoggedIn()) {
 }
 
 $error = '';
+$isBlocked = $rateLimiter->isBlocked();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    if (empty($username) || empty($password)) {
+    // Rate Limiting prüfen
+    if ($isBlocked) {
+        $remainingTime = $rateLimiter->getRemainingLockoutTime();
+        $minutes = ceil($remainingTime / 60);
+        $error = "Zu viele fehlgeschlagene Versuche. Bitte warten Sie $minutes Minute(n).";
+    } elseif (empty($username) || empty($password)) {
         $error = 'Bitte Benutzername und Passwort eingeben';
     } elseif ($auth->login($username, $password)) {
+        $rateLimiter->recordSuccessfulLogin($username);
         header('Location: index.php');
         exit;
     } else {
-        $error = 'Ungültiger Benutzername oder Passwort';
+        $rateLimiter->recordFailedAttempt($username);
+        $remaining = $rateLimiter->getRemainingAttempts();
+
+        if ($remaining > 0) {
+            $error = "Ungültiger Benutzername oder Passwort. Noch $remaining Versuch(e).";
+        } else {
+            $error = 'Zu viele fehlgeschlagene Versuche. Bitte warten Sie 15 Minuten.';
+        }
     }
+}
+
+// Periodische Bereinigung (bei 1% der Requests)
+if (rand(1, 100) === 1) {
+    $rateLimiter->cleanup();
 }
 ?>
 <!DOCTYPE html>
@@ -159,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <input type="password" id="password" name="password" required>
             </div>
 
-            <button type="submit">Anmelden</button>
+            <button type="submit" <?= $isBlocked ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '' ?>>Anmelden</button>
         </form>
     </div>
 </body>

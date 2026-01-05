@@ -25,6 +25,9 @@ class Auth
         $user = $this->userModel->validateLogin($username, $password);
 
         if ($user) {
+            // Regenerate session ID to prevent session fixation attacks
+            session_regenerate_id(true);
+
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['role'] = $user['role'];
@@ -106,6 +109,42 @@ class Auth
         if (!$this->isAdmin()) {
             http_response_code(403);
             die('Zugriff verweigert');
+        }
+    }
+
+    /**
+     * CSRF Token generieren oder abrufen
+     */
+    public function getCsrfToken(): string
+    {
+        if (!isset($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
+        return $_SESSION['csrf_token'];
+    }
+
+    /**
+     * CSRF Token validieren
+     */
+    public function validateCsrfToken(?string $token): bool
+    {
+        if (!isset($_SESSION['csrf_token']) || !$token) {
+            return false;
+        }
+        return hash_equals($_SESSION['csrf_token'], $token);
+    }
+
+    /**
+     * CSRF Schutz für API-Requests
+     */
+    public function requireCsrfToken(): void
+    {
+        $token = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null;
+        if (!$this->validateCsrfToken($token)) {
+            http_response_code(403);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'error' => 'Ungültiger CSRF-Token']);
+            exit;
         }
     }
 }
