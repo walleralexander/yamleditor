@@ -7,7 +7,17 @@
       "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: YAML/MD Editor WebApp\n\nPHP/JS web application for editing YAML and Markdown files with:\n- Split-view layout (file list left, editor right)\n- CodeMirror editor with syntax highlighting\n- User authentication with SQLite database\n- CRUD operations for files and users\n- Admin panel for user management\n- Docker support with Dockerfile and docker-compose.yml\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(php -S:*)",
       "Bash(php:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(gh auth:*)",
+      "Bash(cat:*)",
+      "Bash(unzip:*)"
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "printf '\\033[01;32m%s@%s\\033[00m:\\033[01;34m%s\\033[00m' \"$(whoami)\" \"$(hostname -s)\" \"$(pwd)\""
   }
 }
